@@ -5,11 +5,14 @@
 \usepackage{listings}
 \usepackage{graphicx}
 \usepackage{url}
+\usepackage{color}
+\usepackage{alltt}
+\newcommand{\solverpref}[1]{{\texttt{#1}}}
 
 \title{A short guide to {\bf user preferences}\\ for the MISC dependency solvers}
 \author{Roberto Di Cosmo\\Univ Paris Diderot, Sorbonne Paris Cit\'e,\\ PPS, UMR 7126, CNRS,
     F-75205 Paris, France\\\url{roberto@dicosmo.org}}
-\date{}
+\date{July 10th 2014}
 
 \begin{document}
 \maketitle
@@ -29,9 +32,9 @@ according to the principles stated in~\cite{DepSolversNP2012}, and
 using the dependency solvers that participated in the latest MISC competition
 \footnote{http://www.mancoosi.org/misc/}.
 
-These solvers are all able to read the CUDF format~\cite{cudf2008} and provide
+These solvers are all able to read the CUDF format~\cite{mancoosi-tr3} and provide
 a specialised \emph{preference language} that allows to express these high-level
-concerns.  A \emph{preference expression} is built from three basic ingredients:
+concerns.  A \emph{preference expression} is built from four basic ingredients:
 \begin{description}
   \item[package selectors] a predefined set of keywords allow to identify in a proposed solution
                            certain classes of packages (the ones that changed, the ones that got removed, etc.)
@@ -80,7 +83,7 @@ the packages to upgrade.
     installed version.
 \end{description}
 
-Starting from version \texttt{1.9.1}, the \texttt{aspcud} solver also supports the following additional selectors
+Starting from version \texttt{1.9.1}, the \texttt{aspcud} solver~\cite{aspcud-2011} also supports the following additional selectors
 
 \begin{description}
   \item[installrequest] denotes $\{ p\in S ~\mid~  p \mbox{ mentioned in } InstReq\}$, i.e. the packages in the solution
@@ -119,6 +122,41 @@ example \texttt{-count(removed),-count(changed)} is a preference expression
 that specifies a solution which minimises the number of removed packages,
 and then minimises the number of changed ones.
 
+\section{Examples of usage}
+
+
+
+\subsection{Examples preferences when installing your packages}
+\paragraph{Simple.} Here are two preferences that roughly correspond to a \emph{paranoid} user which is interested in installing a package with minimal changes to the system,
+and to a \emph{trendy} user that wants to get the latest and best version of all current packages. They both want to avoid removal of installed packages, but share little less.
+\begin{description}
+\item[paranoid] \solverpref{-count(removed),-count(changed)}
+\item[trendy] \solverpref{-count(removed),-notuptodate(solution),-count(new)}
+\end{description}
+
+\paragraph{More refined.} Using the selectors \texttt{request} and \texttt{down}, it is possible to write a more refined version of the above preferences, that may
+correspond to the needs of both categories of users: here we ask the solver to get the latest version only for the packages explicitly mentioned in the request.
+\begin{description}
+\item[paranoidtrendy] \solverpref{-count(removed),-notuptodate(\textcolor{blue}{request}),-count(down),-count(changed)}
+\end{description}
+
+\paragraph{Repairing a broken system configuration.} If a system has got into an inconsistent state (package dependencies are broken, conflicts creeped in), it
+is quite simple to repair it by issueing an empty request with one of the following user preferences
+\begin{description}
+\item[fixup simple] \solverpref{-count(changed)}
+\item[fixup trendy] \solverpref{-count(changed),-count(down),-notuptodate(solution)}
+\end{description}
+
+\paragraph{More exotic examples.} It is also possible to exploit user preferences to obtain a bill of materials to build a system with
+specific properties, like a minimal disk footprint (as is done in \url{https://github.com/rdicosmo/ami-thinner} to create minimal Debian
+virtual machines), or the largest set of compatible components.
+
+\begin{description}
+\item[Minimal system size] \solverpref{-sum(solution,installedsize),-count(solution)}
+\item[Noah's ark] \solverpref{+count(solution)}
+\item[Noah's ark, fresh] \solverpref{-notuptodate(solution),+count(solution)}
+\end{description}
+
 \section{Older preference language}
 
 Solvers participating in earlier versions of the MISC competition supported a simpler preference language,
@@ -139,7 +177,7 @@ unsat\_recommends & unsat\_recommends(solution)\\\hline
 \end{center}
 
 
-\section{Package managers and solvers supporting user preferences}
+\section{Solvers supporting user preferences}
 
 At the time of this writing, here is the list of available dependency solvers supporting
 the different preference languages:
@@ -156,9 +194,65 @@ the different preference languages:
       and \texttt{packup}\footnote{\url{http://sat.inesc-id.pt/~mikolas/sw/packup/}}.
 \end{description}
 
+\subsection{Getting your external solver}
+The \texttt{p2cudf} solver is Java based, and sould be quite portable, even if it is not
+the fastest among the available solvers.
+For Debian and Ubuntu users, the \texttt{mccs}, \texttt{packup} and \texttt{aspcud} solvers
+are installable out of the box.
+
+In case one needs a solver on a platform that does not easily accomodates it, either
+because a packages version is not available, or because the system has little resources
+(like Arduino or RaspberriPi boards), it is now possible to get a solver \emph{in the cloud}.
+It is enough to go to \texttt{http://cudf-solvers.irill.org} and follow the instructions therein.
+
+\section{Package managers that can use external dependency solvers}
+
 These solvers can be used by recent versions of the \texttt{apt-get} and \texttt{opam} package managers.
 
-\bibliography{dicosmo,biblio}
+\subsection{Using external solvers with \texttt{apt-get}}
+
+Current versions of \texttt{apt-get} have an option \texttt{--solver} that allows to specify an external
+solver. Notice though that because of the inner working of \texttt{apt-get}, one gets better result
+by using the wrapper script \texttt{apt-cudf-get} that accepts the same options as apt-get.
+
+\subsection{Using external solvers with \texttt{opam}}
+Thanks to the work done by the Mancoosi team at Irill and OCamlPro, in the DORM project,
+the \texttt{aspcud} solver is supported out of the box in \texttt{opam} since 1.0.
+With a current version of \texttt{opam}, one can use any other CUDF compatible solver:
+typing \textcolor{blue}{\texttt{opam --help}} shows 
+
+\begin{alltt}
+...
+OPTIONS
+  \textcolor{blue}{--criteria}=CRITERIA
+      Specify user preferences for dependency solving for this run.
+      Overrides both $OPAMCRITERIA and $OPAMUPGRADECRITERIA. 
+      For details on the supported language, see
+      http://opam.ocaml.org/doc/Specifying_Solver_Preferences.html. 
+      The default value is \textcolor{blue}{-removed,-notuptodate,-changed} for upgrades,
+      and \textcolor{blue}{-removed,-changed,-notuptodate} otherwise.
+
+  \textcolor{blue}{--cudf}=FILENAME
+      Debug option: Save the CUDF requests sent to the solver to
+      FILENAME-<n>.cudf.
+
+  \textcolor{blue}{--solver}=CMD
+      Specify the name of the external dependency solver. The default
+      value is \textcolor{blue}{aspcud}
+...
+\end{alltt}
+
+\section{Conclusions and future work}
+User preferences are a powerful tool to orient a dependency solver towards solutions that correspond
+to high-level user desiderata. We have presented here the current state of the art for the class of
+solvers that did take part in the annual MISC competition over the past years.
+
+More work may needed to refine and expand the user preferences language, in order to improve its
+expressivity, according to concrete use cases.
+
+\nocite{packup-2010, MCCS-2010}
+
+\bibliography{dicosmo,mancoosi}
 \bibliographystyle{abbrv}
 
 \end{document}
