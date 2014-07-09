@@ -1,0 +1,164 @@
+\documentclass{article}
+
+\usepackage{a4}
+\usepackage[utf8]{inputenc}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{url}
+
+\title{A short guide to {\bf user preferences}\\ for the MISC dependency solvers}
+\author{Roberto Di Cosmo\\Univ Paris Diderot, Sorbonne Paris Cit\'e,\\ PPS, UMR 7126, CNRS,
+    F-75205 Paris, France\\\url{roberto@dicosmo.org}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{The basics}
+
+When performing an installation or an upgrade, the user of a package manager 
+explicitly formulates a \emph{user request} mentioning the packages that need
+to be installed or upgraded, possibly with same constraints (e.g. to
+install package \texttt{foo} in some version greater then \texttt{3.2-5}).
+
+The user may also be concerned about the packages that are changed, the packages
+that are not up to date, the packages that get removed, or even more exotic
+features like “the overall installed size” of the solution proposed by the
+package manager. This is possible when using package managers designed
+according to the principles stated in~\cite{DepSolversNP2012}, and
+using the dependency solvers that participated in the latest MISC competition
+\footnote{http://www.mancoosi.org/misc/}.
+
+These solvers are all able to read the CUDF format~\cite{cudf2008} and provide
+a specialised \emph{preference language} that allows to express these high-level
+concerns.  A \emph{preference expression} is built from three basic ingredients:
+\begin{description}
+  \item[package selectors] a predefined set of keywords allow to identify in a proposed solution
+                           certain classes of packages (the ones that changed, the ones that got removed, etc.)
+  \item[measurements] a predefined set of measurement functions can be appliead to a package selector
+                      to obtain an integer value (the number of package selected, the number of packages selected that are up-to-date, etc.)
+  \item[maximisation/minimisation] one can ask the solver to find a solution that maximises or minimises the value of a measurement 
+  \item[aggregation] one can ask the solver to aggregate several maximised or minimised measurements in lexicographical order
+\end{description}
+
+We summarise in what follows the package selectors and the measurements available in the latest preference language.
+
+\section{Package selectors}
+
+In the following we describe the package available selectors. Notice that in what follows
+$S$ stands for the solution proposed by the solver, $I$ stands for the packages installed
+before calling the solver, $IntReq$ stands for the part of the user request specifying
+the packages to install, and $UpgReq$ stands for the part of the user request specifying
+the packages to upgrade.
+
+\begin{description}
+  \item[solution] denotes the set $S$ of packages that are in the solution found by the solver
+  \item[changed] denotes $\{p \in S ~\mid~  p \not\in I\} \cup \{p \in I ~\mid~  p
+    \not\in S\}$, in other words the symmetric set difference between S and
+    I. That is, changed denotes the set of packages that have been newly
+    installed or removed. Note that when a package with name foo gets upgraded
+    from version 1 to version 2 this means that (foo,1) gets removed and
+    (foo,2) gets installed, and as a consequence the set changed contains both
+    packages (foo,1) and (foo,2).
+  \item[new] denotes $\{ p \in S ~\mid~  p.name \not\in I.name \}$ is the set of
+    packages that are finally installed, and for which no package of the same
+    name was initially installed.
+  \item[removed] denotes $\{ p \in I ~\mid~  p.name \not\in S.name \}$ is the set of
+    packages that were initially installed, and for which no package of the
+    same name is finally installed.
+  \item[up] denotes $\{ p \in S ~\mid~  \exists q \in I \mbox{ with } q.name = p.name, \mbox{ and } \forall q \in I
+    \mbox{ with } q.name = p.name : q.version < p.version\}$. 
+    In other words, up is the set of upgraded packages. In case multiple
+    versions of packages with the same name may be installed, the upgrade
+    consists of the packages with a version higher than any previously
+    installed version.
+  \item[down] denotes $\{ p \in S ~\mid~  \exists q \in I \mbox{ with } q.name = p.name, \mbox{ and } \forall q \in I
+    \mbox{ with } q.name = p.name : q.version > p.version\}$. 
+    In other words, up is the set of downgraded packages. In case multiple
+    versions of packages with the same name may be installed, the downgrade
+    consists of the packages with a version higher than any previously
+    installed version.
+\end{description}
+
+Starting from version \texttt{1.9.1}, the \texttt{aspcud} solver also supports the following additional selectors
+
+\begin{description}
+  \item[installrequest] denotes $\{ p\in S ~\mid~  p \mbox{ mentioned in } InstReq\}$, i.e. the packages in the solution
+    that the user explicitly requested to install
+  \item[upgraderequest] denotes $\{ p\in S ~\mid~  p \mbox{ mentioned in } UpgReq\}$, i.e. the packages in the solution
+    that the user explicitly requested to upgrade
+  \item[request] is the union of the above two
+\end{description}
+
+\section{Measurements}
+
+On each of package selector $X$, we can ask the solver to compute one of the following measures:
+
+\begin{description}
+\item[count($X$)] is the number of packages in $X$
+\item[sum($X$,f)] is the sum over all packages in the set $X$ of the value of their \emph{integer} field $f$.
+                A typical example of this would be \texttt{sum(solution,size)}, with \texttt{size} an 
+                integer-valued property of packages indicating their size.
+\item[notuptodate($X$)] is the number of packages in $X$ that are not in the latest known version.
+\item[unsat\_recommends($X$)] counts the number of disjunctions in Recommends-fields of packages in $X$ that are not satisfied by $S$.
+\item[aligned($X$,g1,g2)] is formally $card(\{ (x.g1,x.g2) \mid x \in X \}) - card(\{ x.g1 \mid x \in X \})$.
+        In other words, we first cluster the packages in X according to their values at the properties g1 and g2 and count the number of clusters, yielding a value $v1$. Then we do the same when clustering only by the property g1, yielding a value $v2$. The value returned is then $v1-v2$. 
+This measure can be used to count \emph{version changes} as defined in~\cite{AlignedUpgrades2011}.
+\end{description}
+      
+\section{Optimising and combining measurements}
+
+The measures described above are used as functions that the solver is the asked to maximise or minimise.
+In the preference language, maximisation is specified by prepending the plus sign $+$ to a measure, and
+minimisation is specified by prepending a minus sign $-$ to a measure. For example, \texttt{-count(changed)}
+requires a solution that minimises changes with respect to the initial configuration, while \texttt{+count(up)}
+requests a solution maximising the upgrades.
+
+Several criteria can be aggregated together in lexicographical order, so for
+example \texttt{-count(removed),-count(changed)} is a preference expression
+that specifies a solution which minimises the number of removed packages,
+and then minimises the number of changed ones.
+
+\section{Older preference language}
+
+Solvers participating in earlier versions of the MISC competition supported a simpler preference language,
+that can be directly translated into the more sophisticated one described above.\\
+
+The correspondence is given below.\\
+
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+Old language & New language \\\hline
+removed     & count(removed) \\
+new         & count(new) \\
+changed     & count(changed) \\
+notuptodate & notuptodate(solution)\\
+unsat\_recommends & unsat\_recommends(solution)\\\hline
+\end{tabular}
+\end{center}
+
+
+\section{Package managers and solvers supporting user preferences}
+
+At the time of this writing, here is the list of available dependency solvers supporting
+the different preference languages:
+
+\begin{description}
+ \item[full selectors and measures] \mbox{}\\\texttt{aspcud}\footnote{\url{http://sourceforge.net/projects/potassco/files/aspcud/}} versions \texttt{1.9.1} and later
+ \item[MISC 2012 selectors and measures]\mbox{}\\
+      \texttt{aspcud} in versions \texttt{1.8} and later;\\
+      \texttt{p2cudf} \footnote{\url{http://wiki.eclipse.org/Equinox/p2/CUDFResolver}}
+ \item[older preference language]\mbox{}\\
+      \texttt{aspcud} versions \texttt{1.9.1} and later,\\
+      \texttt{aspcud} versions before \texttt{1.8} (e.g. version \texttt{2011.03.17} in Debian and Ububntu);\\
+      \texttt{mccs}\footnote{\url{http://www.i3s.unice.fr/~cpjm/misc/mccs.html}},\\
+      and \texttt{packup}\footnote{\url{http://sat.inesc-id.pt/~mikolas/sw/packup/}}.
+\end{description}
+
+These solvers can be used by recent versions of the \texttt{apt-get} and \texttt{opam} package managers.
+
+\bibliography{dicosmo,biblio}
+\bibliographystyle{abbrv}
+
+\end{document}
