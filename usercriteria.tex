@@ -95,7 +95,7 @@ Starting from version \texttt{1.9.1}, the \texttt{aspcud} solver~\cite{aspcud-20
 
 \section{Measurements}
 
-On each of package selector $X$, we can ask the solver to compute one of the following measures:
+On each package selector $X$, we can ask the solver to compute one of the following measures:
 
 \begin{description}
 \item[count($X$)] is the number of packages in $X$
@@ -111,7 +111,7 @@ This measure can be used to count \emph{version changes} as defined in~\cite{Ali
       
 \section{Optimising and combining measurements}
 
-The measures described above are used as functions that the solver is the asked to maximise or minimise.
+The measures described above are used as functions that the solver is then asked to maximise or minimise.
 In the preference language, maximisation is specified by prepending the plus sign $+$ to a measure, and
 minimisation is specified by prepending a minus sign $-$ to a measure. For example, \texttt{-count(changed)}
 requires a solution that minimises changes with respect to the initial configuration, while \texttt{+count(up)}
@@ -157,6 +157,33 @@ virtual machines), or the largest set of compatible components.
 \item[Noah's ark, fresh] \solverpref{-notuptodate(solution),+count(solution)}
 \end{description}
 
+\section{Mixing user request and solver preferences for expressivity}
+
+There may be situations where the precise objective the user is pursuing can be
+described by using a combination of the user requestand the solver preferences.
+
+A typical example is the removal of \emph{cruft}, that can accumulate on a
+system in the form of packages that ended up installed at some point, to satisfy
+dependencies, but that are now no longer needed by any of the packages
+explicitly installed by the user (often called \emph{root} packages).  This
+functionality is offered for example by package managers like \texttt{apt-get}
+or \texttt{aptitude} that provide an \emph{autoremove} command.\\
+
+A package manager built on top of CUDF-compatible dependency solvers can provide
+the same functionality by simply specifying in an \emph{install} user request all the
+\emph{root} packages, at their current version, and then using the preference
+expression \texttt{-count(solution)}. 
+%
+This will effectively ensure that all root packages stay installed at their
+current version, and then minimise the number of extra packages present.\\
+
+As a variant, if one is interested at the same time in getting the latest version
+of the root packages, one can use an \emph{upgrade} user request mentioning
+all the root packages (that will prevent downgrades of the root packages) and
+then use the preference expression \texttt{-notuptodate(request),-count(down),-count(solution)}.
+The resulting effect will be to pick a solution that get the latest version
+of the root packages, while minimising downgrades and irrelevant extra packages.
+
 \section{Older preference language}
 
 Solvers participating in earlier versions of the MISC competition supported a simpler preference language,
@@ -200,7 +227,7 @@ the fastest among the available solvers.
 For Debian and Ubuntu users, the \texttt{mccs}, \texttt{packup} and \texttt{aspcud} solvers
 are installable out of the box.
 
-In case one needs a solver on a platform that does not easily accomodates it, either
+In case one needs a solver on a platform that does not easily accomodate it, either
 because a packages version is not available, or because the system has little resources
 (like Arduino or RaspberriPi boards), it is now possible to get a solver \emph{in the cloud}.
 It is enough to go to \texttt{http://cudf-solvers.irill.org} and follow the instructions therein.
