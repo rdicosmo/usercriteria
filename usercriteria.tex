@@ -279,22 +279,25 @@ OPTIONS
 ...
 \end{alltt}
 
-\section{Proposed selector extension: filters and set operators}\label{sect:filtersel}
+\section{Proposed extensions: filters, set operators, unsatclauses}\label{sect:filtersel}
 
-We propose to extend the preference language by introducing an additional package selector, \texttt{filter}, and
-closing the package selectors by the union, intersection, and difference set operations.
+Following recent discussions on package management issues, we propose to extend
+the preference language by introducing an additional package selector,
+\texttt{filter}, closing the package selectors by the union, intersection,
+and difference set operations, and generalising the \texttt{unsat\_recommends}. \\
 
-The intended semantics is the following:
+The intended syntax and semantics are described below:
 
+\paragraph{Selectors}
 \begin{description}
   \item[\texttt{filter(\emph{field} op \emph{value})}] denotes $\{ p \in S ~\mid~  p.field ~op~ value \}$, the set of packages in the solution $S$ whose field \emph{field} contains a value $v$ s.t.
         $v~op~value$. For example  \texttt{filter(root = true)} will select all root packages in the solution (as seen above, in \texttt{opam}, that's the set of packages whose installation was explicitly
         requested by the user, as opposed to packages that are pulled in to satisfy dependencies).
-  \item[set operators] have the usual semantics as intersection, union and difference
+  \item[set operators (and, or, minus)] have the usual semantics as intersection, union and difference
 \end{description}
 
 
-With filters, it is pretty easy to rewrite the example given in Section~\ref{sect:mix} as the one liner
+\noindent With filters, it is pretty easy to rewrite the example given in Section~\ref{sect:mix} as the one liner
 
 \begin{center}
 \texttt{-count(changed ~and~ filter(root=true)),-count(solution)}
@@ -306,6 +309,14 @@ And it is now possible to write a preference expression that roughly means
 \begin{center}
 \texttt{-count(removed ~and~ filter(root=true)),-notuptodate(filter(root=true)}
 \end{center}
+
+\paragraph{Measures}
+
+\begin{description}
+  \item[\texttt{unsatclauses(\emph{name},$X$)}] counts the number of unsatisfied clauses in the field \emph{name} of the packages in $X$. 
+The current \texttt{unsat\_recommends($X$)} measure would then simply become a special case, and can be encoded as \texttt{unsatclauses(Recommends,$X$)}.
+\end{description}
+
 
 \section{Conclusions and future work}
 User preferences are a powerful tool to orient a dependency solver towards solutions that correspond
