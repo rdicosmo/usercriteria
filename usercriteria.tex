@@ -313,8 +313,8 @@ And it is now possible to write a preference expression that roughly means
 \paragraph{Measures}
 
 \begin{description}
-  \item[\texttt{unsatclauses(\emph{name},$X$)}] counts the number of unsatisfied clauses in the field \emph{name} of the packages in $X$. 
-The current \texttt{unsat\_recommends($X$)} measure would then simply become a special case, and can be encoded as \texttt{unsatclauses(Recommends,$X$)}.
+  \item[\texttt{unsatclauses($X$,\emph{name})}] counts the number of unsatisfied clauses in the field \emph{name} of the packages in $X$. 
+The current \texttt{unsat\_recommends($X$)} measure would then simply become a special case, and can be encoded as \texttt{unsatclauses($X$,Recommends)}.
 \end{description}
 
 
@@ -337,9 +337,11 @@ here.
 
 \section{BNF of the user preference language}
 
-The following BNF grammar describes the preference expression language. Notice that the green nonterminal \aspcudext{\texttt{reqsel}} describes
-the package selector extension implemented by \texttt{aspcud}, and the blue part of the \texttt{selector} production correspond to the proposed
-extension of the selectors of section~\ref{sect:filtersel}.
+The following BNF grammar describes the preference expression language. Notice
+that the green nonterminal \aspcudext{\texttt{reqsel}} describes the package
+selector extension implemented by \texttt{aspcud}, and the blue part of the
+\texttt{selector} and \texttt{bynarym} productions correspond to the proposed
+extensions proposed in section~\ref{sect:filtersel}.
 
 \begin{bnf*}
 \bnfprod{prefexpr}
@@ -350,7 +352,7 @@ extension of the selectors of section~\ref{sect:filtersel}.
 \\
 \bnfprod{measure}
 {\bnfpn{unarym} \bnfsp \bnfts{(} \bnfsp  \bnfpn{selector} \bnfsp \bnfts{)} \bnfsp  \bnfor 
- \bnfts{sum}\bnfsp \bnfts{(} \bnfsp  \bnfpn{selector} \bnfsp \bnfts{,} \bnfsp  \bnftd{field} \bnfsp \bnfts{)} \bnfsp  \bnfor
+ \bnfpn{bynarym} \bnfsp \bnfts{(} \bnfsp  \bnfpn{selector} \bnfsp \bnfts{,} \bnfsp  \bnftd{field} \bnfsp \bnfts{)} \bnfsp  \bnfor
  \bnfts{aligned}\bnfsp \bnfts{(} \bnfsp  \bnfpn{selector} \bnfsp \bnfts{,} \bnfsp  \bnftd{field} \bnfsp \bnfts{,} \bnfsp  \bnftd{field} \bnfsp \bnfts{)} \bnfsp  
 }\\
 \bnfprod{unarym}
@@ -358,6 +360,11 @@ extension of the selectors of section~\ref{sect:filtersel}.
   \bnfts{count} \bnfor
   \bnfts{notuptodate} \bnfor
   \bnfts{unsat\_recommends}
+}\\
+\bnfprod{binarym}
+{
+ \bnfts{sum} \bnfor
+\proposal{\bnfts{unsatclauses}}
 }\\
 \bnfprod{selector}
 {
