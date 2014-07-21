@@ -15,8 +15,11 @@
 \newcommand{\DATE}{\gitAuthorDate}
 
 \newcommand{\solverpref}[1]{{\texttt{#1}}}
+\newcommand{\proposal}[1]{{\textcolor{blue}{#1}}}
+\newcommand{\aspcudext}[1]{{\textcolor{green}{#1}}}
+\newcommand{\bslash}{\tt\char`\\}
 
-\title{A short guide to {\bf user preferences}\\ for the MISC dependency solvers}
+\title{A short guide to {\bf user preferences}\\ for the MISC dependency solvers\\ and a proposal for its extension}
 \author{Roberto Di Cosmo\\Univ Paris Diderot, Sorbonne Paris Cit\'e,\\ PPS, UMR 7126, CNRS,
     F-75205 Paris, France\\\url{roberto@dicosmo.org}}
 \date{\DATE{} - \VERSION{}}
@@ -276,6 +279,34 @@ OPTIONS
 ...
 \end{alltt}
 
+\section{Proposed selector extension: filters and set operators}\label{sect:filtersel}
+
+We propose to extend the preference language by introducing an additional package selector, \texttt{filter}, and
+closing the package selectors by the union, intersection, and difference set operations.
+
+The intended semantics is the following:
+
+\begin{description}
+  \item[\texttt{filter(\emph{field} op \emph{value})}] denotes $\{ p \in S ~\mid~  p.field ~op~ value \}$, the set of packages in the solution $S$ whose field \emph{field} contains a value $v$ s.t.
+        $v~op~value$. For example  \texttt{filter(root = true)} will select all root packages in the solution (as seen above, in \texttt{opam}, that's the set of packages whose installation was explicitly
+        requested by the user, as opposed to packages that are pulled in to satisfy dependencies).
+  \item[set operators] have the usual semantics as intersection, union and difference
+\end{description}
+
+
+With filters, it is pretty easy to rewrite the example given in Section~\ref{sect:mix} as the one liner
+
+\begin{center}
+\texttt{-count(changed ~and~ filter(root=true)),-count(solution)}
+\end{center}
+
+And it is now possible to write a preference expression that roughly means
+``do not remove root packages, and bring them to their latest version''
+
+\begin{center}
+\texttt{-count(removed ~and~ filter(root=true)),-notuptodate(filter(root=true)}
+\end{center}
+
 \section{Conclusions and future work}
 User preferences are a powerful tool to orient a dependency solver towards solutions that correspond
 to high-level user desiderata. We have presented here the current state of the art for the class of
@@ -289,5 +320,78 @@ expressivity, according to concrete use cases.
 %\bibliography{dicosmo,mancoosi}
 \bibliography{usercriteria}
 \bibliographystyle{abbrv}
+
+\appendix
+
+\section{BNF of the user preference language}
+
+The following BNF grammar describes the preference expression language. Notice that the green nonterminal \aspcudext{\texttt{reqsel}} describes
+the package selector extension implemented by \texttt{aspcud}, and the blue part of the \texttt{selector} production correspond to the proposed
+extension of the selectors of section~\ref{sect:filtersel}.
+
+\begin{bnf*}
+\bnfprod{prefexpr}
+{\bnfpn{optim} \bnfor \bnfpn{optim} \bnfsp \bnfts{,} \bnfsp \bnfpn{prefexpr}}
+\\
+\bnfprod{optim}
+{\bnfts{+} \bnfsp \bnfpn{measure} \bnfor \bnfts{-} \bnfsp \bnfpn{measure}}
+\\
+\bnfprod{measure}
+{\bnfpn{unarym} \bnfsp \bnfts{(} \bnfsp  \bnfpn{selector} \bnfsp \bnfts{)} \bnfsp  \bnfor 
+ \bnfts{sum}\bnfsp \bnfts{(} \bnfsp  \bnfpn{selector} \bnfsp \bnfts{,} \bnfsp  \bnftd{field} \bnfsp \bnfts{)} \bnfsp  \bnfor
+ \bnfts{aligned}\bnfsp \bnfts{(} \bnfsp  \bnfpn{selector} \bnfsp \bnfts{,} \bnfsp  \bnftd{field} \bnfsp \bnfts{,} \bnfsp  \bnftd{field} \bnfsp \bnfts{)} \bnfsp  
+}\\
+\bnfprod{unarym}
+{
+  \bnfts{count} \bnfor
+  \bnfts{notuptodate} \bnfor
+  \bnfts{unsat\_recommends}
+}\\
+\bnfprod{selector}
+{
+  \bnfpn{basicsel} \bnfor
+  \aspcudext{\bnfpn{reqsel}} \bnfor
+  \proposal{
+    \bnfpn{filtersel} \bnfor
+    \bnfsp \bnfts{(} \bnfsp  \bnfpn{selector} \bnfsp \bnfts{)} \bnfsp  \bnfor
+    \bnfpn{selector} \bnfsp \bnfpn{setop} \bnfsp \bnfpn{selector}
+  }
+}\\
+\bnfprod{basicsel}
+{\bnfts{new} \bnfor 
+  \bnfts{changed} \bnfor
+  \bnfts{removed} \bnfor
+  \bnfts{up} \bnfor
+  \bnfts{down} \bnfor
+  \bnfts{solution}
+}\\
+\bnfprod{reqsel}
+{
+  \bnfts{request} \bnfor
+  \bnfts{installrequest} \bnfor
+  \bnfts{upgraderequest}
+}\\
+\\
+\bnfprod{filtersel}
+{
+  \bnfts{filter} \bnfsp \bnfts{(} \bnfsp  \bnftd{fieldname} \bnfsp \bnfpn{op} \bnfsp \bnftd{value} \bnfsp \bnfts{)} \bnfsp 
+}\\
+\bnfprod{op}
+{
+  \bnfts{\texttt{=}}  \bnfor
+  \bnfts{\texttt{>}}  \bnfor
+  \bnfts{\texttt{<}}  \bnfor
+  \bnfts{\texttt{>=}} \bnfor
+  \bnfts{\texttt{<=}} \bnfor
+  \bnfts{\texttt{<>}}
+}\\
+\bnfprod{setop}
+{
+  \bnfts{\texttt{and}} \bnfor
+  \bnfts{\texttt{or}} \bnfor
+  \bnfts{\texttt{minus}}
+}\\
+\end{bnf*}
+
 
 \end{document}
